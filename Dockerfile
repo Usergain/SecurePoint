@@ -1,12 +1,13 @@
 # Official Odoo base image
 FROM odoo:16.0
 
-# Environment variables for PostgreSQL configuration
-ENV POSTGRES_DB=postgres \
-    POSTGRES_USER=odoo \
-    POSTGRES_PASSWORD=odoo
+# Variables de entorno esperadas por Odoo
+ENV DB_HOST=postgres \
+    DB_PORT=5432 \
+    DB_USER=odoo \
+    DB_PASSWORD=odoo
 
-# Instala herramientas útiles (opcional)
+# Instala herramientas útiles
 USER root
 RUN apt-get update && apt-get install -y \
     git \
@@ -14,11 +15,12 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# ⚠️ NO USAR VOLUME con Railway
+# ⚠️ No usar volumes con Railway
 # VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
 
-# Puerto de exposición
+# Puerto expuesto
 EXPOSE 8069
 
 # Comando por defecto
 CMD ["odoo"]
+
