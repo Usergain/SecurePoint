@@ -1,11 +1,11 @@
 # Official Odoo base image
 FROM odoo:16.0
 
-# Variables de entorno esperadas por Odoo
-ENV DB_HOST=postgres \
-    DB_PORT=5432 \
-    DB_USER=odoo \
-    DB_PASSWORD=odoo
+# Variables de entorno esperadas por Odoo no usar con Railway
+#ENV DB_HOST=postgres \
+#    DB_PORT=5432 \
+#    DB_USER=odoo \
+#    DB_PASSWORD=odoo
 
 # Instala herramientas útiles
 USER root
