@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create Odoo data volume
-VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
+#VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
 
 # Port exposed
 EXPOSE 8069
