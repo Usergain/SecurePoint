@@ -1,4 +1,3 @@
-
 # Official Odoo base image
 FROM odoo:16.0
 
@@ -7,7 +6,7 @@ ENV POSTGRES_DB=postgres \
     POSTGRES_USER=odoo \
     POSTGRES_PASSWORD=odoo
 
-# Install necessary dependencies (if required)
+# Instala herramientas útiles (opcional)
 USER root
 RUN apt-get update && apt-get install -y \
     git \
@@ -15,11 +14,11 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# Create Odoo data volume
-#VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
+# ⚠️ NO USAR VOLUME con Railway
+# VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
 
-# Port exposed
+# Puerto de exposición
 EXPOSE 8069
 
-# Default command to start Odoo
+# Comando por defecto
 CMD ["odoo"]
