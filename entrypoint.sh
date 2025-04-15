@@ -19,3 +19,4 @@ exec odoo \
   --db_user="$DB_USER" \
   --db_password="$DB_PASSWORD" \
   -d "$DB_NAME"
+  -i base
