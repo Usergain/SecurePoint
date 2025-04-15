@@ -1,11 +1,5 @@
-# Official Odoo base image
+# Imagen base oficial de Odoo
 FROM odoo:16.0
-
-# Variables de entorno esperadas por Odoo no usar con Railway
-#ENV DB_HOST=postgres \
-#    DB_PORT=5432 \
-#    DB_USER=odoo \
-#    DB_PASSWORD=odoo
 
 # Instala herramientas útiles
 USER root
@@ -15,12 +9,12 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# ⚠️ No usar volumes con Railway
-# VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
+# Copiar entrypoint personalizado
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Puerto expuesto
+# Puerto expuesto por Odoo
 EXPOSE 8069
 
-# Comando por defecto
-CMD ["odoo"]
-
+# Comando de arranque
+CMD ["/entrypoint.sh"]
