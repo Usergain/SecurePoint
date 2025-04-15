@@ -11,8 +11,9 @@ fi
 
 # Ejecutar Odoo con los valores extraídos
 exec odoo \
-  --db_host=$DB_HOST \
-  --db_port=${DB_PORT:-5432} \
-  --db_user=$DB_USER \
-  --db_password=$DB_PASSWORD \
-  --db_name=$DB_NAME
+  --db_host="$DB_HOST" \
+  --db_port="${DB_PORT:-5432}" \
+  --db_user="$DB_USER" \
+  --db_password="$DB_PASSWORD" \
+  --db_name="$DB_NAME"
+
