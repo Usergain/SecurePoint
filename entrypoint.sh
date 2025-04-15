@@ -1,19 +1,12 @@
 #!/bin/bash
 
-# Parsear DATABASE_URL si existe
-if [[ -n "$DATABASE_URL" ]]; then
-  export DB_HOST=$(echo $DATABASE_URL | sed -E 's|.*@([^:/]+).*|\1|')
-  export DB_PORT=$(echo $DATABASE_URL | sed -E 's|.*:([0-9]+)/.*|\1|')
-  export DB_USER=$(echo $DATABASE_URL | sed -E 's|postgresql://([^:]+):.*|\1|')
-  export DB_PASSWORD=$(echo $DATABASE_URL | sed -E 's|postgresql://[^:]+:([^@]+)@.*|\1|')
-  export DB_NAME=$(echo $DATABASE_URL | sed -E 's|.*/([^/?]+).*|\1|')
-fi
+# Asignar valores por defecto si alguna variable no está definida
+DB_PORT="${DB_PORT:-5432}"
 
-# Ejecutar Odoo con los valores extraídos
+# Ejecutar Odoo con parámetros explícitos
 exec odoo \
   --db_host="$DB_HOST" \
-  --db_port="${DB_PORT:-5432}" \
+  --db_port="$DB_PORT" \
   --db_user="$DB_USER" \
   --db_password="$DB_PASSWORD" \
   --db_name="$DB_NAME"
-
