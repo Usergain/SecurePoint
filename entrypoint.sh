@@ -5,7 +5,7 @@ set -e
 echo "⏳ Esperando a que la base de datos esté disponible..."
 
 # Esperar a que la base de datos acepte conexiones
-while ! nc -z "${ODOO_DATABASE_HOST}" "${ODOO_DATABASE_PORT}" 2>/dev/null; do
+while ! nc -z "${DB_HOST}" "${DB_PORT}" 2>/dev/null; do
     sleep 1
 done
 
@@ -17,9 +17,9 @@ exec odoo \
     --init=all \
     --without-demo=True \
     --proxy-mode \
-    --db_host="${ODOO_DATABASE_HOST}" \
-    --db_port="${ODOO_DATABASE_PORT}" \
-    --db_user="${ODOO_DATABASE_USER}" \
-    --db_password="${ODOO_DATABASE_PASSWORD}" \
+    --db_host="${DB_HOST}" \
+    --db_port="${DB_PORT}" \
+    --db_user="${DB_USER}" \
+    --db_password="${DB_PASSWORD}" \
     --database="panaderia_estrella" \
     --log-level=info
