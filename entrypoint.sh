@@ -13,7 +13,7 @@ echo "✅ Base de datos disponible."
 
 # Ejecutar Odoo
 exec odoo \
-    --http-port="${PORT:-8069}" \
+    --http-port="${PORT}" \
     --init=all \
     --without-demo=True \
     --proxy-mode \
