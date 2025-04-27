@@ -1,54 +1,68 @@
-# SecurePoint
-creation of a project for POS securization
+# SecurePoint Systems 🚀
 
-# Odoo + PostgreSQL Docker Setup
-
-This project includes a complete infrastructure with Odoo 16 and PostgreSQL using Docker Compose.
-
-## ✅ Requirements
-
-- Docker
-- Docker Compose
-- Account in Railway, Render, Fly.io or local environment.
-
-## 📁 Structure
-
-- `.docker-compose.yml` - Defines Odoo and PostgreSQL services
-- `.env` - environment variables (user, database, password)
-- `/addons/` - Optional folder for your custom modules
-
-## 🚀 How to build the local environment
-
-```bash
-docker-compose up -d
-```
-
-Access from your browser to:
-
-```
-http://localhost:8069
-```
-
-## 🌐 How to deploy it in Railway (100% free)
-
-1. Go to https://railway.app
-2. Create a new project > ``Deploy from GitHub``.
-3. Plug in your repository that has this `docker-compose.yml`
-4. Railway will detect the file and automatically deploy it.
-5. Open port `8069` in Railway (in Settings > Networking)
-6. Log in to Odoo using the subdomain provided by Railway.
-
-## 🧠 Default data.
-
-- PostgreSQL:
-  - DB: `odoo`
-  - USER: `odoo`
-  - PASSWORD: `odoo`
-
-You can change these values in `.env`
+SecurePoint es una infraestructura profesional para la demostración de un entorno seguro de TPVs conectados a sistemas de monitorización de amenazas en la nube.
 
 ---
 
-This environment supports multiple Odoo databases (`Star Bakery`, `SME`, etc.) and starts automatically every time the server is restarted.
+## 📦 Contenidos del Repositorio
 
-Translated with DeepL.com (free version)
+| Carpeta         | Contenido                             | Plataforma     |
+|:----------------|:--------------------------------------|:---------------|
+| `/odoo/`        | Odoo POS - TPV Panadería y Gestión     | Railway        |
+| `/monitoring/`  | OpenVAS + Wireshark + Netdata          | Render         |
+| `/terraform/`   | Scripts de despliegue en Oracle Cloud  | Oracle Cloud   |
+
+---
+
+## 🛠️ Despliegue
+
+### Odoo POS
+- Plataforma: **Railway**
+- Ruta: `/odoo/`
+- Despliegue: Dockerfile + Variables de entorno (DB_HOST, DB_PORT, DB_USER...)
+
+### Sistema de Monitorización
+- Plataforma: **Render**
+- Ruta: `/monitoring/`
+- Servicios:
+  - OpenVAS (escaneos de vulnerabilidades)
+  - Wireshark (análisis de red)
+  - Netdata (monitorización gráfica de contenedores)
+
+### Alta disponibilidad futura (Oracle)
+- Plataforma: **Oracle Cloud Free Tier**
+- Ruta: `/terraform/`
+- Automatización de instancias: **Terraform**
+
+---
+
+## 🌐 Arquitectura del Proyecto
+
+- **Railway**: TPV Odoo (Alta Disponibilidad)
+- **Render**: Sistema de monitorización
+- **AWS**: (opcional) Alta disponibilidad futura + Prowler
+- **Oracle**: Nodo backup en cloud (cuando haya espacio)
+
+Tecnologías de autenticación:
+- OAuth 2.0
+- API Key
+- SAML (opcional)
+
+---
+
+## 🔥 Visión Final
+
+- Login sencillo para negocios (panaderías, gestorías, etc.)
+- Alta disponibilidad y resiliencia cloud
+- Monitorización continua de ciberamenazas
+- Panel centralizado de control
+- Preparado para escalado real a producción 🚀
+
+---
+
+## 👨‍💻 Creditos
+
+Proyecto desarrollado por **SecurePoint Systems** como PoC para Startup + Trabajo Final de Ciclo Formativo ASIX.
+
+---
+
