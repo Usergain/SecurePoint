@@ -1,1 +1,44 @@
 
+version: '3.1'
+
+services:
+
+  db:
+    image: postgres:15
+    container_name: odoo-db
+    restart: always
+    environment:
+      POSTGRES_DB: odoo
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  odoo:
+    build: .
+    container_name: odoo-app
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    environment:
+      PORT: 8069
+      ODOO_DATABASE_HOST: db
+      ODOO_DATABASE_PORT: 5432
+      ODOO_DATABASE_USER: odoo
+      ODOO_DATABASE_PASSWORD: odoo
+      ODOO_DATABASE_NAME: odoo
+      ODOO_SMTP_HOST: smtp.example.com
+      ODOO_SMTP_PORT_NUMBER: 587
+      ODOO_SMTP_USER: your@email.com
+      ODOO_SMTP_PASSWORD: your_password
+      ODOO_EMAIL_FROM: your@email.com
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:
