@@ -7,7 +7,8 @@ sudo apt update
 sudo apt upgrade -y
 
 echo "✅ Instalando Docker y Docker Compose..."
-sudo apt install -y docker.io docker-compose
+sudo apt install -y docker.io 
+sudo apt install -y docker-compose
 
 echo "✅ Habilitando y arrancando Docker..."
 sudo systemctl enable docker
