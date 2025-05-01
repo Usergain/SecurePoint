@@ -1,1 +1,4 @@
-
+version: '3'
+services:
+  openvas:
+    image: greenbone/openvas
