@@ -1,55 +1,84 @@
-
 #!/bin/bash
 
 # --- Configuración OpenVAS Lite (1GB RAM/30GB ROM) ---
 
-# Verificar si ya está instalado
-if [ -f ~/.openvas-installed ]; then
-  echo "OpenVAS Lite ya está instalado. Ejecutar 'docker-compose up -d' en el directorio."
+# 1. Verificar si es root o usar sudo
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Requeridos permisos de administrador. Ejecutando con sudo..."
+  exec sudo bash "$0" "$@"
+  exit $?
+fi
+
+# 2. Verificar si ya está instalado
+if [ -f /root/.openvas-installed ]; then
+  echo "OpenVAS Lite ya está instalado."
+  echo "Ejecutar 'cd ~/SecurePoint/security/openvas-lite && docker-compose up -d'"
   exit 0
 fi
 
-# Instalar dependencias
-echo "Instalando dependencias..."
-sudo apt-get update > /dev/null
-sudo apt-get install -y docker.io docker-compose curl jq > /dev/null
+# 3. Configurar logging completo
+LOG_FILE="/var/log/openvas-install.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
 
-# Configurar Docker sin sudo
-sudo usermod -aG docker $USER
-newgrp docker
+echo "=== Inicio de instalación $(date) ==="
 
-# Crear estructura de directorios
-mkdir -p ~/openvas-lite/{config,data} && cd ~/openvas-lite
+# 4. Instalar dependencias con verificación
+echo -n "Instalando dependencias... "
+apt-get update && apt-get install -y \
+    docker.io \
+    docker-compose \
+    curl \
+    jq \
+    git \
+    uidmap \
+    >> "$LOG_FILE" 2>&1
 
-# Descargar archivos de configuración
-echo "Descargando configuración optimizada..."
-curl -sO https://raw.githubusercontent.com/tu-usuario/tpv-seguro/main/openvas-lite/docker-compose.yml
-curl -sO https://raw.githubusercontent.com/tu-usuario/tpv-seguro/main/openvas-lite/Dockerfile
+if [ $? -eq 0 ]; then
+  echo "Éxito"
+else
+  echo "Fallo! Ver /var/log/openvas-install.log"
+  exit 1
+fi
 
-# Iniciar servicio (primera vez tarda ~20 mins)
-echo "Iniciando OpenVAS Lite (paciencia, primera ejecución tarda)..."
-docker-compose up -d
+# 5. Configurar Docker en modo rootless (más seguro)
+echo "Configurando Docker rootless..."
+systemctl stop docker
+dockerd-rootless-setuptool.sh install
+systemctl start docker
 
-# Esperar hasta que esté HEALTHY
+# 6. Crear estructura de directorios
+echo "Creando directorios..."
+mkdir -p /opt/SecurePoint/security/openvas-lite/{config,data}
+cd /opt/SecurePoint/security/openvas-lite
+
+# 7. Descargar configuración desde GitHub
+echo "Descargando configuración..."
+curl -sO https://raw.githubusercontent.com/tu-usuario/SecurePoint/main/security/openvas-lite/docker-compose.yml
+curl -sO https://raw.githubusercontent.com/tu-usuario/SecurePoint/main/security/openvas-lite/Dockerfile
+
+# 8. Iniciar servicio
+echo "Iniciando OpenVAS Lite (paciencia)..."
+docker-compose up -d &
+
+# 9. Monitorizar progreso
 while ! docker ps --filter name=openvas-lite --format '{{.Status}}' | grep -q 'healthy'; do
-  echo "Esperando inicialización completa (10s más)..."
-  sleep 10
+  echo "Estado: $(docker inspect -f '{{.State.Status}}' openvas-lite)"
+  sleep 30
 done
 
-# Configuración post-instalación
-echo "Optimizando configuración para bajos recursos..."
-docker exec -it openvas-lite bash -c "echo 'config set scanner.auto_update=false' | openvasmd --server"
-docker exec -it openvas-lite sed -i 's/max_hosts=.*/max_hosts=1/' /etc/openvas/openvassd.conf
-docker exec -it openvas-lite sed -i 's/max_checks=.*/max_checks=5/' /etc/openvas/openvassd.conf
-
-# Reiniciar con nueva configuración
+# 10. Configuración post-instalación
+echo "Optimizando configuración..."
+docker exec openvas-lite bash -c "echo 'config set scanner.auto_update=false' | openvasmd --server"
+docker exec openvas-lite sed -i 's/max_hosts=.*/max_hosts=1/' /etc/openvas/openvassd.conf
+docker exec openvas-lite sed -i 's/max_checks=.*/max_checks=5/' /etc/openvas/openvassd.conf
 docker-compose restart
 
-# Marcar como instalado
-touch ~/.openvas-installed
+# 11. Marcar como instalado
+touch /root/.openvas-installed
 
-# Mostrar credenciales
-echo "¡Instalación completada!"
-echo "Acceso Web: https://$(curl -s ifconfig.me):9390"
+# 12. Mostrar credenciales
+echo "=== Instalación completada ==="
+echo "URL: https://$(curl -s ifconfig.me):9390"
 echo "Usuario: admin"
-echo "Contraseña: $(docker exec -it openvas-lite cat /var/lib/openvas/private/credentials | cut -d':' -f2)"
+echo "Contraseña: $(docker exec openvas-lite cat /var/lib/openvas/private/credentials | cut -d':' -f2)"
+echo "Log completo: $LOG_FILE"
