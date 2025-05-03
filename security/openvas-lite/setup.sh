@@ -39,47 +39,27 @@ log "Configurando directorios..."
 mkdir -p "$COMPOSE_DIR"/{config,data} || { log "Error creando directorios"; exit 1; }
 cd "$COMPOSE_DIR" || exit
 
-# 3. Crear docker-compose.yml optimizado
-cat > docker-compose.yml << 'EOL'
-version: '3.8'
-services:
-  openvas:
-    image: immauss/openvas:latest
-    container_name: openvas-lite
-    restart: unless-stopped
-    environment:
-      - OV_UPDATE=no
-      - SKIP_WAIT=yes
-      - MAX_CPUS=1
-      - REDIS_MAX_MEMORY=64mb
-      - OV_PRELOAD_CACHE=no
-    volumes:
-      - ./data:/var/lib/openvas
-      - ./config:/etc/openvas
-    ports:
-      - "9390:9390"
-    mem_limit: 768m
-    mem_reservation: 512m
-    cpus: 0.8
-    healthcheck:
-      test: ["CMD", "curl", "-kf", "https://localhost:9390"]
-      interval: 1m
-      timeout: 10s
-      retries: 10
-EOL
+# 3. Verificar docker-compose.yml existe
+if [ ! -f "docker-compose.yml" ]; then
+    log "ERROR: docker-compose.yml no encontrado en $COMPOSE_DIR"
+    log "Por favor coloca el archivo docker-compose.yml en el directorio antes de ejecutar"
+    exit 1
+else
+    log "Usando docker-compose.yml existente"
+fi
 
-# Asegurar permisos correctos en los directorios
+# 4. Asegurar permisos correctos en los directorios
 log "Configurando permisos..."
 mkdir -p "$COMPOSE_DIR"/data
 chown -R 1000:1000 "$COMPOSE_DIR"/data
 chmod -R 775 "$COMPOSE_DIR"/data
 find "$COMPOSE_DIR"/data -type f -exec chmod 664 {} \;
 
-# 4. Iniciar servicio
+# 5. Iniciar servicio
 log "Iniciando contenedor OpenVAS Lite..."
 docker-compose up -d >> "$LOG_FILE" 2>&1
 
-# 5. Esperar inicialización con timeout
+# 6. Esperar inicialización con timeout
 log "Esperando inicialización (puede tardar hasta 2 horas)..."
 while [ $SECONDS -lt $TIMEOUT_INSTALL ]; do
     STATUS=$(docker inspect -f '{{.State.Health.Status}}' openvas-lite 2>/dev/null)
@@ -105,7 +85,7 @@ while [ $SECONDS -lt $TIMEOUT_INSTALL ]; do
     esac
 done
 
-# 6. Configuración post-instalación
+# 7. Configuración post-instalación
 if [ "$STATUS" = "healthy" ]; then
     log "Optimizando configuración..."
     docker exec openvas-lite bash -c "
@@ -116,7 +96,7 @@ if [ "$STATUS" = "healthy" ]; then
     
     docker-compose restart >> "$LOG_FILE" 2>&1
     
-    # 7. Mostrar credenciales
+# 8. Mostrar credenciales
     PASS=$(docker exec openvas-lite cat /var/lib/openvas/private/credentials 2>/dev/null | cut -d':' -f2)
     
     echo "=====================================" | tee -a "$LOG_FILE"
