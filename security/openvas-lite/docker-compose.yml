@@ -1,1 +1,26 @@
+# central-dashboard/docker-compose.yml
+version: '3.8'
 
+services:
+  dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - netdata
+      - openvas
+    environment:
+      - NETDATA_URL=http://netdata:19999
+      - OPENVAS_URL=https://openvas:9390
+
+  netdata:
+    image: netdata/netdata
+    restart: unless-stopped
+    ports:
+      - "19999:19999"
+
+  openvas:
+    build: ../security/openvas-lite
+    restart: on-failure
+    ports:
+      - "9390:9390"
