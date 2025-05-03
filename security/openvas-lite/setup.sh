@@ -1,84 +1,129 @@
 #!/bin/bash
 
-# --- Configuración OpenVAS Lite (1GB RAM/30GB ROM) ---
+# =============================================
+# OpenVAS Lite Installer (Optimized for 1GB RAM)
+# =============================================
 
-# 1. Verificar si es root o usar sudo
-if [ "$(id -u)" -ne 0 ]; then
-  echo "Requeridos permisos de administrador. Ejecutando con sudo..."
-  exec sudo bash "$0" "$@"
-  exit $?
-fi
-
-# 2. Verificar si ya está instalado
-if [ -f /root/.openvas-installed ]; then
-  echo "OpenVAS Lite ya está instalado."
-  echo "Ejecutar 'cd ~/SecurePoint/security/openvas-lite && docker-compose up -d'"
-  exit 0
-fi
-
-# 3. Configurar logging completo
+# Configuración inicial
 LOG_FILE="/var/log/openvas-install.log"
-exec > >(tee -a "$LOG_FILE") 2>&1
+COMPOSE_DIR="/home/admin/SecurePoint/security/openvas-lite"
+TIMEOUT_INSTALL=$((SECONDS + 7200)) # 2 horas máximo
 
-echo "=== Inicio de instalación $(date) ==="
+# Función para loggear
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
 
-# 4. Instalar dependencias con verificación
-echo -n "Instalando dependencias... "
-apt-get update && apt-get install -y \
-    docker.io \
-    docker-compose \
-    curl \
-    jq \
-    git \
-    uidmap \
-    >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
-  echo "Éxito"
-else
-  echo "Fallo! Ver /var/log/openvas-install.log"
-  exit 1
+# Verificar root
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo bash "$0" "$@"
+    exit $?
 fi
 
-# 5. Configurar Docker en modo rootless (más seguro)
-echo "Configurando Docker rootless..."
-systemctl stop docker
-dockerd-rootless-setuptool.sh install
-systemctl start docker
+# Encabezado de instalación
+echo "=====================================" | tee -a "$LOG_FILE"
+echo "  Instalación OpenVAS Lite (1GB RAM)  " | tee -a "$LOG_FILE"
+echo "=====================================" | tee -a "$LOG_FILE"
+log "Iniciando proceso de instalación..."
 
-# 6. Crear estructura de directorios
-echo "Creando directorios..."
-mkdir -p /opt/SecurePoint/security/openvas-lite/{config,data}
-cd /opt/SecurePoint/security/openvas-lite
+# 1. Instalar dependencias
+log "Instalando dependencias..."
+apt-get update >> "$LOG_FILE" 2>&1
+apt-get install -y docker.io docker-compose curl jq >> "$LOG_FILE" 2>&1
 
-# 7. Descargar configuración desde GitHub
-echo "Descargando configuración..."
-curl -sO https://raw.githubusercontent.com/tu-usuario/SecurePoint/main/security/openvas-lite/docker-compose.yml
-curl -sO https://raw.githubusercontent.com/tu-usuario/SecurePoint/main/security/openvas-lite/Dockerfile
+# Configurar Docker sin sudo
+usermod -aG docker admin >> "$LOG_FILE" 2>&1
 
-# 8. Iniciar servicio
-echo "Iniciando OpenVAS Lite (paciencia)..."
-docker-compose up -d &
+# 2. Crear estructura de directorios
+log "Configurando directorios..."
+mkdir -p "$COMPOSE_DIR"/{config,data} || { log "Error creando directorios"; exit 1; }
+cd "$COMPOSE_DIR" || exit
 
-# 9. Monitorizar progreso
-while ! docker ps --filter name=openvas-lite --format '{{.Status}}' | grep -q 'healthy'; do
-  echo "Estado: $(docker inspect -f '{{.State.Status}}' openvas-lite)"
-  sleep 30
+# 3. Crear docker-compose.yml optimizado
+cat > docker-compose.yml << 'EOL'
+version: '3.8'
+services:
+  openvas:
+    image: immauss/openvas:latest
+    container_name: openvas-lite
+    restart: unless-stopped
+    environment:
+      - OV_UPDATE=no
+      - SKIP_WAIT=yes
+      - MAX_CPUS=1
+      - REDIS_MAX_MEMORY=64mb
+      - OV_PRELOAD_CACHE=no
+    volumes:
+      - ./data:/var/lib/openvas
+      - ./config:/etc/openvas
+    ports:
+      - "9390:9390"
+    mem_limit: 768m
+    mem_reservation: 512m
+    cpus: 0.8
+    healthcheck:
+      test: ["CMD", "curl", "-kf", "https://localhost:9390"]
+      interval: 1m
+      timeout: 10s
+      retries: 10
+EOL
+
+# 4. Iniciar servicio
+log "Iniciando contenedor OpenVAS Lite..."
+docker-compose up -d >> "$LOG_FILE" 2>&1
+
+# 5. Esperar inicialización con timeout
+log "Esperando inicialización (puede tardar hasta 2 horas)..."
+while [ $SECONDS -lt $TIMEOUT_INSTALL ]; do
+    STATUS=$(docker inspect -f '{{.State.Health.Status}}' openvas-lite 2>/dev/null)
+    
+    case $STATUS in
+        healthy)
+            log "OpenVAS Lite está listo!"
+            break
+            ;;
+        starting)
+            # Mostrar progreso cada 5 minutos
+            if (( $SECONDS % 300 == 0 )); then
+                LOG_LINE=$(docker logs --tail=1 openvas-lite 2>&1)
+                log "Estado: starting | Último log: $LOG_LINE"
+            fi
+            sleep 30
+            ;;
+        *)
+            log "Estado inesperado: $STATUS"
+            docker logs --tail=20 openvas-lite >> "$LOG_FILE"
+            exit 1
+            ;;
+    esac
 done
 
-# 10. Configuración post-instalación
-echo "Optimizando configuración..."
-docker exec openvas-lite bash -c "echo 'config set scanner.auto_update=false' | openvasmd --server"
-docker exec openvas-lite sed -i 's/max_hosts=.*/max_hosts=1/' /etc/openvas/openvassd.conf
-docker exec openvas-lite sed -i 's/max_checks=.*/max_checks=5/' /etc/openvas/openvassd.conf
-docker-compose restart
-
-# 11. Marcar como instalado
-touch /root/.openvas-installed
-
-# 12. Mostrar credenciales
-echo "=== Instalación completada ==="
-echo "URL: https://$(curl -s ifconfig.me):9390"
-echo "Usuario: admin"
-echo "Contraseña: $(docker exec openvas-lite cat /var/lib/openvas/private/credentials | cut -d':' -f2)"
-echo "Log completo: $LOG_FILE"
+# 6. Configuración post-instalación
+if [ "$STATUS" = "healthy" ]; then
+    log "Optimizando configuración..."
+    docker exec openvas-lite bash -c "
+        echo 'config set scanner.auto_update=false' | openvasmd --server;
+        sed -i 's/max_hosts=.*/max_hosts=1/' /etc/openvas/openvassd.conf;
+        sed -i 's/max_checks=.*/max_checks=3/' /etc/openvas/openvassd.conf;
+        echo 'Optimización completada'" >> "$LOG_FILE" 2>&1
+    
+    docker-compose restart >> "$LOG_FILE" 2>&1
+    
+    # 7. Mostrar credenciales
+    PASS=$(docker exec openvas-lite cat /var/lib/openvas/private/credentials 2>/dev/null | cut -d':' -f2)
+    
+    echo "=====================================" | tee -a "$LOG_FILE"
+    echo "  INSTALACIÓN COMPLETADA CON ÉXITO    " | tee -a "$LOG_FILE"
+    echo "=====================================" | tee -a "$LOG_FILE"
+    echo "URL de acceso: https://$(curl -s ifconfig.me):9390" | tee -a "$LOG_FILE"
+    echo "Usuario: admin" | tee -a "$LOG_FILE"
+    echo "Contraseña: ${PASS:-'Generada, ver en /var/lib/openvas/private/credentials'}" | tee -a "$LOG_FILE"
+    echo "Log completo: $LOG_FILE" | tee -a "$LOG_FILE"
+    echo "=====================================" | tee -a "$LOG_FILE"
+else
+    log "ERROR: Tiempo de espera agotado (2 horas)"
+    log "Últimos logs:"
+    docker logs --tail=50 openvas-lite >> "$LOG_FILE"
+    echo "Consulte el log completo: $LOG_FILE" >&2
+    exit 1
+fi
