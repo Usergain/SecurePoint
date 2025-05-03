@@ -68,6 +68,13 @@ services:
       retries: 10
 EOL
 
+# Asegurar permisos correctos en los directorios
+log "Configurando permisos..."
+mkdir -p "$COMPOSE_DIR"/data
+chown -R 1000:1000 "$COMPOSE_DIR"/data
+chmod -R 775 "$COMPOSE_DIR"/data
+find "$COMPOSE_DIR"/data -type f -exec chmod 664 {} \;
+
 # 4. Iniciar servicio
 log "Iniciando contenedor OpenVAS Lite..."
 docker-compose up -d >> "$LOG_FILE" 2>&1
