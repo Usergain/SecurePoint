@@ -48,7 +48,9 @@ cat > suricata.yaml << 'EOL'
 ---
 default-rule-path: /var/lib/suricata/rules
 rule-files:
-  - emerging*.rules
+  rule-files:
+  - emerginguard*.rules  # Solo reglas esenciales
+default-rule-path: /var/lib/suricata/rules
 
 outputs:
   - fast:
