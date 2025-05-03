@@ -1,26 +1,26 @@
-# central-dashboard/docker-compose.yml
 version: '3.8'
-
 services:
-  dashboard:
-    build: .
-    ports:
-      - "3000:3000"
-    depends_on:
-      - netdata
-      - openvas
-    environment:
-      - NETDATA_URL=http://netdata:19999
-      - OPENVAS_URL=https://openvas:9390
-
-  netdata:
-    image: netdata/netdata
-    restart: unless-stopped
-    ports:
-      - "19999:19999"
-
   openvas:
-    build: ../security/openvas-lite
-    restart: on-failure
+    image: immauss/openvas:latest
+    container_name: openvas-lite
+    user: "1000:1000"  # Ejecutar como usuario no-root
+    restart: unless-stopped
+    environment:
+      - OV_UPDATE=no
+      - SKIP_WAIT=yes
+      - MAX_CPUS=1
+      - REDIS_MAX_MEMORY=64mb
+      - OV_PRELOAD_CACHE=no
+    volumes:
+      - ./data:/var/lib/openvas
+      - ./config:/etc/openvas
     ports:
       - "9390:9390"
+    mem_limit: 768m
+    mem_reservation: 512m
+    cpus: 0.8
+    healthcheck:
+      test: ["CMD", "curl", "-kf", "https://localhost:9390"]
+      interval: 1m
+      timeout: 10s
+      retries: 10
