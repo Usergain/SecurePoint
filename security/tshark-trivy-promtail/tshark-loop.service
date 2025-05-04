@@ -1,1 +1,15 @@
+[Unit]
+Description=Looped TShark Logger for Odoo
+After=network.target
 
+[Service]
+ExecStart=/bin/bash -c "while true; do if [ -f /var/log/tshark.log ] && [ $(du -m /var/log/tshark.log | cut -f1) -ge 50 ]; then echo '' > /var/log/tshark.log; fi; tshark -i any -f 'port 8069' -c 1000 >> /var/log/tshark.log 2>&1; sleep 5; done"
+Restart=always
+RestartSec=10
+User=root
+Nice=10
+IOSchedulingClass=2
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target
