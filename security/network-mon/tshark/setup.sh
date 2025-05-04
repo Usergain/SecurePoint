@@ -1,65 +1,84 @@
 #!/bin/bash
 
-# =============================================
-# TShark Installer (Network Monitoring)
-# =============================================
-
-# Configuración
-LOG_FILE="/var/log/tshark-install.log"
-CONTAINER_NAME="tshark-monitor"
-INTERFACE="eth0"  # Cambiar según tu interfaz de red
-CAPTURE_DIR="/data/captures"
-
-# Función para loggear
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-# Verificar root
-if [ "$(id -u)" -ne 0 ]; then
-    echo "Ejecutando con sudo..."
-    exec sudo bash "$0" "$@"
-    exit $?
-fi
-
-# Encabezado
-echo "=====================================" | tee -a "$LOG_FILE"
-echo "  Instalación TShark (Wireshark CLI)  " | tee -a "$LOG_FILE"
-echo "=====================================" | tee -a "$LOG_FILE"
-log "Iniciando instalación..."
-
-# 1. Instalar dependencias
-log "Instalando dependencias..."
-apt-get update >> "$LOG_FILE" 2>&1
-apt-get install -y docker.io docker-compose >> "$LOG_FILE" 2>&1
-
-# 2. Configurar directorios
-log "Preparando entorno..."
-mkdir -p "$CAPTURE_DIR" && chmod -R 777 "$CAPTURE_DIR"
-
-# 3. Verificar Dockerfile y compose
-if [ ! -f "Dockerfile" ] || [ ! -f "docker-compose.yml" ]; then
-    log "ERROR: Faltan Dockerfile o docker-compose.yml"
-    exit 1
-fi
-
-# 4. Construir e iniciar contenedor
-log "Iniciando TShark..."
-docker-compose up -d >> "$LOG_FILE" 2>&1
-
-# 5. Verificar estado
-sleep 5  # Esperar inicialización
-if docker ps | grep -q "$CONTAINER_NAME"; then
-    log "TShark instalado correctamente."
-    log "Capturas guardadas en: $CAPTURE_DIR"
-    log "Ver logs: docker logs -f $CONTAINER_NAME"
+# === CARGA DE CONFIGURACIÓN ===
+CONFIG_FILE="./setup.conf"
+if [[ -f "$CONFIG_FILE" ]]; then
+  source "$CONFIG_FILE"
 else
-    log "ERROR: Contenedor no iniciado. Ver $LOG_FILE"
-    exit 1
+  echo "Fichero de configuración $CONFIG_FILE no encontrado. Abortando."
+  exit 1
 fi
 
-echo "=====================================" | tee -a "$LOG_FILE"
-echo "  Instalación completada             " | tee -a "$LOG_FILE"
-echo "=====================================" | tee -a "$LOG_FILE"
+# === PREPARACIÓN DEL SISTEMA ===
+echo "[+] Instalando dependencias"
+sudo apt update && sudo apt install -y unzip tshark curl
 
+# === DIRECTORIOS ===
+echo "[+] Creando estructura de directorios"
+mkdir -p "$SECURITY_DIR" && cd "$SECURITY_DIR"
 
+# === DESCARGA DE PROMTAIL ===
+echo "[+] Descargando Promtail"
+curl -LO "$PROMTAIL_URL"
+unzip promtail-linux-amd64.zip
+chmod +x promtail-linux-amd64
+sudo mv promtail-linux-amd64 "$PROMTAIL_BIN"
+
+# === CONFIGURACIÓN DE PROMTAIL ===
+echo "[+] Configurando promtail"
+cat <<EOF | sudo tee /etc/promtail-config.yaml
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: $LOKI_SERVER_URL
+
+scrape_configs:
+  - job_name: tshark
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: tshark
+          host: tshark-node
+          __path__: /var/log/tshark.log
+EOF
+
+# === SERVICIO SYSTEMD PARA PROMTAIL + TSHARK ===
+echo "[+] Creando servicio systemd"
+cat <<EOF | sudo tee /etc/systemd/system/promtail.service
+[Unit]
+Description=Looped TShark Logger with Cleanup
+After=network.target
+
+[Service]
+ExecStart=/bin/bash -c '\
+  while true; do \
+    if [ -f /var/log/tshark.log ] && [ \\\n         \$(du -m /var/log/tshark.log | cut -f1) -ge 50 ]; then \
+      echo "" > /var/log/tshark.log; \
+    fi; \
+    tshark -i any -c 1000 >> /var/log/tshark.log 2>&1; \
+    sleep 5; \
+  done'
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# === INICIAR SERVICIO ===
+echo "[+] Habilitando e iniciando servicio"
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable promtail
+sudo systemctl start promtail
+
+# === CONFIRMACIÓN ===
+echo "✅ Promtail + TShark en ejecución. Logs siendo enviados a Loki."
+echo "🔍 Verifica en Grafana (Explore) con: {job=\"tshark\"}"
