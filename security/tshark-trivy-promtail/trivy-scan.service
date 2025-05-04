@@ -1,10 +1,6 @@
 [Unit]
-Description=Run Trivy Scan every 6 hours
+Description=Run Trivy Scan and store to log
+After=network.target
 
-[Timer]
-OnBootSec=10min
-OnUnitActiveSec=6h
-Unit=trivy-scan.service
-
-[Install]
-WantedBy=timers.target
+[Service]
+ExecStart=/bin/bash -c '/usr/bin/trivy image --severity HIGH,CRITICAL --format table odoo-odoo | tee /var/log/trivy.log'
