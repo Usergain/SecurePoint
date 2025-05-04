@@ -25,3 +25,8 @@ AWS Secret Access Key
 ```bash
 aws configure --profile default
 ```
+
+Luego lanzar la orden:
+```bash
+prowler aws --service iam ec2 --output-formats csv
+```
