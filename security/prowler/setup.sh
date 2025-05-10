@@ -1,27 +1,28 @@
 #!/bin/bash
 
 # Variables
-VENV_NAME="prowler-venv"
 PROFILE_NAME="default"
+REGION="eu-north-1"
 
-echo "[+] Instalando dependencias del sistema..."
-sudo apt update && sudo apt install -y python3-venv unzip awscli git
+# Crear entorno virtual
+python3 -m venv prowler-venv
+source prowler-venv/bin/activate
 
-echo "[+] Clonando repositorio oficial de Prowler..."
-git clone https://github.com/prowler-cloud/prowler.git
-cd prowler
+# Actualizar pip y setuptools
+pip install --upgrade pip setuptools
 
-echo "[+] Creando entorno virtual Python..."
-python3 -m venv ~/$VENV_NAME
-source ~/$VENV_NAME/bin/activate
-
-echo "[+] Instalando Prowler desde PyPI..."
+# Instalar prowler
 pip install prowler
 
-echo "[+] Configurando credenciales AWS..."
+# Configurar AWS CLI (requiere que el usuario tenga las credenciales ya configuradas)
 aws configure --profile $PROFILE_NAME
 
-echo "[+] Ejecutando primer escaneo..."
-prowler aws --severity critical high --output-formats csv --profile $PROFILE_NAME | tee /var/log/prowler-scan.log
+# Ejecutar auditoría
+mkdir -p /var/log
+prowler aws --profile $PROFILE_NAME \
+    --region $REGION \
+    --severity critical high \
+    --output-formats csv \
+    | tee /var/log/prowler-scan.log
 
-echo "[+] Instalación y escaneo completado."
+echo "✅ Auditoría completa. CSV generado en /home/$(whoami)/output/"
