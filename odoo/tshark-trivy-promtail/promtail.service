@@ -1,1 +1,12 @@
+[Unit]
+Description=Promtail log shipper
+After=network.target
 
+[Service]
+ExecStart=/usr/bin/nice -n 10 /usr/bin/ionice -c2 -n7 /usr/local/bin/promtail -config.file=/etc/promtail-config.yaml
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
