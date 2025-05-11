@@ -1,6 +1,0 @@
-[Unit]
-Description=Run Trivy Scan and store to log
-After=network.target
-
-[Service]
-ExecStart=/bin/bash -c '/usr/bin/trivy image --severity HIGH,CRITICAL --format table odoo-odoo | tee /var/log/trivy.log'
