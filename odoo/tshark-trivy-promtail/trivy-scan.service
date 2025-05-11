@@ -1,1 +1,10 @@
+[Unit]
+Description=Periodic Trivy Scan for Odoo Docker Image
+After=network.target docker.service
 
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=2
+IOSchedulingPriority=7
+ExecStart=/usr/local/bin/trivy-scan.sh
